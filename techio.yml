@@ -4,6 +4,8 @@ plan:
     statement: markdowns/welcome.md
   - title: "Introduction"
     statement: markdowns/intro.md
+  - title: "Differences between CGZero and Alphazero"
+    statement: markdowns/differences.md
   - title: "Environment Preparation"
     statement: markdowns/environment.md
   - title: "Work in progress"
