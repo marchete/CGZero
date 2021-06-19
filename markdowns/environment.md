@@ -95,3 +95,9 @@ jupyter notebook
 ```
 3. In the browser, open `Train.ipynb` file.
 4. Click run until you reach the **MAIN TRAINING LOOP**.
+
+## Steps for sending a bot to Codingame.
+1. Copy CGZero binary (compiled as x64 linux) to the folder with the ENCODER16k.cs binary
+2. Copy the best weight generation as best.w32 on that same folder
+3. DotNet SDK: ```dotnet run toSend.txt CGZero best.w32``` This will create a ```toSend.txt``` file. You can copy and paste that code on CG IDE.
+3a. Other compiled binaries the command is like ```mono ENCODER16k.exe toSend.txt CGZero best.w32```
