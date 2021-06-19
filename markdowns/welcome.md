@@ -2,6 +2,8 @@
 
 This tutorial can help you implement a working AlphaZero (AZ) like bot  for competing on a limited resources environment (1 vCPU, 100KB of total size and 50ms turn time). Most AZ implementations have many Convolutional/Dense layers, and the model can weight more than 20 MB. This code uses just a tiny Neural Network(NN) of about 80KB in size to fit in the 100KB limit.
 
+See https://github.com/marchete/CGZero for more info and source code.
+
 ## Difficulty Level: 
 Very Hard. There are many different components that must be tied together.
 
