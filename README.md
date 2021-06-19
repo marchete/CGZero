@@ -1,5 +1,5 @@
 # CGZero
-AlphaZero like implementation for Oware abapa game, in Codingame
+AlphaZero like implementation for Oware abapa game, in Codingame (https://www.codingame.com/multiplayer/bot-programming/oware-abapa)
 
 If you improve the code to have better rankings, please share with me.
 
