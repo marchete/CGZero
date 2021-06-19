@@ -1,4 +1,8 @@
-title: Custom Template
+title : AlphaZero like implementation for Oware Abapa game (Codingame)
 plan:
-- title: Welcome
-  statement: markdowns/welcome.md
+  - title: "AlphaZero like implementation for Oware Abapa game"
+    statement: markdowns/welcome.md
+  - title: "Introduction"
+    statement: markdowns/intro.md
+  - title: "Environment Preparation"
+    statement: markdowns/environment.md

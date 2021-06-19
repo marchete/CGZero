@@ -1,0 +1,2 @@
+This is the code I used to get the 6th place bot. I've changed a lot of parameters and code while training the bot, so I can't be sure what was the good hyperparameters for reaching top10.
+Trained bots should be similar in strength. Cleaned code has added diversity on first turns, it should be less blind to some moves.
