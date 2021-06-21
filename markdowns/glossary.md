@@ -25,5 +25,6 @@ You pass a the legal moves count `V` and other parameters (epsilon and alpha), t
 - `Temperature`: Alphazero changes the policy on samples after turn 30, based on a temperature hyperparameter. After that turn AZ gives a policy of type one-hot (all values are zero except the selected move that is 1.0). I don't use that.
 -`cpuct`: This is the exploration parameter for MCTS Search. Original MCTS uses UCB1 formula with an exploration parameter `C`. In Alphazero the formula is replaced to  `Uchild=Qchild + cpuct⋅Pchild⋅(√visitsParent) /(1+visitsChild)`   Qchild is `Q` for that child (meanValue), `Pchild` is the Policy value for that child (it's not a vector, but a single value from parent's policy vector). As you see, `cpuct` is similar to `C` in the original UCB1. But guess what? it isn't. According to [2] `cpuct value grows as search progresses!`. In theory `cpuct`should be between 1.0 and 4.0. I have absolutely no idea how to tune it. I don't know if I need a constant, or if I need to change it based on visit count, based on game turn, or based on MCTS depth (i.e. maybe I should reduce exploration after depth 2 on the MCTS Tree to focus more on best moves after some exploration in lower depths). It's another obscure hyperparatemer to me.  
 
-[1] ![Simple NN model](/images/simplemodel.jpg)
-[2] https://lczero.org/blog/2018/12/alphazero-paper-and-lc0-v0191/ 
+\[1\] ![Simple NN model](/images/simplemodel.jpg)
+
+\[2\] https://lczero.org/blog/2018/12/alphazero-paper-and-lc0-v0191/ 
