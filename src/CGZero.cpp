@@ -2023,8 +2023,8 @@ void _Game::setNNInputs(Model& model, const int& playerID) {
 	//Neural Network inputs are always mirrored as player 0.
 	auto& input = model.inputs[0]->output; //Get input reference
 	
-	float valueZero = 0.1f; //Instead of zero?
-	float valueOne = 0.9f; //Instead of one?
+	float valueZero = 0.0f; //Instead of zero?
+	float valueOne = 1.0f; //Instead of one?
 	//clear;
 	for (int i = 0; i < input.xmm_size; ++i)
 	{
