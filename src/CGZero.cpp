@@ -2534,6 +2534,21 @@ int selfPlay(int argc, char* argv[])
 	SamplesFile* sFile = getSampleFile(samplesFile);
 	for (auto&G : selfGames.games)
 	{
+		//Backpropagated endgame value in turns before an ignoreDontSave might not be correct
+		//Maybe a player win because the opponent did a random move on a critical point
+		//So it's safer to just ignore those previous samples.
+		bool ign = false;
+		if (G.moves.size() > 1)
+		for (int i=(int)G.moves.size()-1;i>=0;--i){
+			if (G.moves[i].ignoreDontSave)
+			{
+				ign = true;
+			}
+			else if (ign)
+			{
+				G.moves[i].ignoreDontSave = true;
+			}
+		}		
 		for (auto& R : G.moves)
 		{
 			if (R.ignoreDontSave)
