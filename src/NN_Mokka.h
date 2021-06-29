@@ -251,8 +251,8 @@ public:
 
 	// Set a single element (float value) into the matrix
 	// Caution: This might be an expensive operation if called multiple times. Use setChunk instead
-	inline void setElement(const uint32_t& index, const float& sumScore) {
-		xmm[index >> 3].f[index & 7] = sumScore;
+	inline void setElement(const uint32_t& index, const float& value) {
+		xmm[index >> 3].f[index & 7] = value;
 	}
 
 	// Set a whole chunk (8 float values) into the matrix
@@ -407,55 +407,6 @@ Tensor loadMatrix(const std::string &matrix_dir, const std::string &matrix_name)
 }
 
 // Change the image shape to make it in columns depending on the size of the filter.
-void im2col(Tensor &input_mat, const std::vector<int> &filterShape, Tensor &out, int s, int pad) {
-	int index = 0;
-	int count = 0;
-	int filter_size = filterShape[0] * filterShape[1] * filterShape[2];
-	int kernel_size = filterShape[0];
-	int tt, yy, tem1, tem2;
-	int x, y, z;
-	if (input_mat.shape.size() == 1)
-	{
-		y = 1; x = 1; z = input_mat.shape[0];
-
-	}
-	else if (input_mat.shape.size() == 2)
-	{
-		y = input_mat.shape[0]; x = 1; z = input_mat.shape[1];
-	}
-	else
-	{
-		y = input_mat.shape[1]; x = input_mat.shape[0]; z = input_mat.shape[2];
-	}
-
-	for (int i = 0; i < y; i = i + s) { //length y
-		for (int k = 0; k < x; k = k + s) { //width x
-			for (int j = 0; j < z; j++) { // depth z
-				tt = k - pad + kernel_size - 1;
-				yy = i - pad + kernel_size - 1;
-				if (tt < x + pad && yy < x + pad) {
-					for (int l = i - pad; l < i - pad + kernel_size && l < y + pad; l++) { // for i
-						for (int m = k - pad; m < k - pad + kernel_size && m < x + pad; m++) { //for j
-							tem1 = m;
-							tem2 = l;
-							if (tem1 >= 0 && tem2 >= 0 && tem1 < x && tem2 < y) {
-								out.setElement(static_cast<uint32_t>(index), input_mat.getElement(
-									static_cast<uint32_t>(tem1 + tem2 * x + j * x * y)));
-							}
-							index++;
-							count++;
-							if (count >= filter_size) {
-								index += 8 - (filter_size % 8);
-								count = 0;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 
 //std::function<void(const Tensor&, Tensor&)> function
 void Activation_Identity(const Tensor& input, Tensor& output) {
@@ -615,12 +566,12 @@ public:
 };
 class WeightBiasLayer : public Layer { //WeightBiasLayer
 protected:
-	Tensor weights;
+	vector<Tensor> weights;
 	Tensor bias;
 	int num_of_outputs;
 public:
 	WeightBiasLayer(std::string name, Activators activator, int num_of_outputs)
-		: Layer(name, activator), num_of_outputs(num_of_outputs) {};
+		: Layer(name, activator), num_of_outputs(num_of_outputs){};
 
 	~WeightBiasLayer() {};
 	//virtual void calculateOutput(Tensor &inputMat) = 0;
@@ -631,14 +582,16 @@ public:
 	};
 
 	void load(std::istream& is)override {
-		weights.load(is);
+		for (auto&w: weights)
+			w.load(is);
 		bias.load(is);
 	};
 	void save(std::ostream& os)override {
-		weights.save(os);
+		for (auto& w : weights)
+			w.save(os);
 		bias.save(os);
 	};
-	inline int countParams() override { return (int)(weights.size + bias.size); };
+	inline int countParams() override { return (int)(weights.size()*weights[0].size + bias.size); };
 };
 
 class Input : public Layer {
@@ -670,32 +623,60 @@ public:
 	string getType() override { return "Input"; };
 	inline int countParams() override { return 0; };
 	int summary() override { return 0; };
+	
+	virtual Tensor* getInputTensor(){
+		return &output;
+	}
+	virtual void RestartInputs() {
+		for (int i = 0; i < output.xmm_size; ++i)
+		{
+			output.xmm[i].v = _mm256_setzero_ps();
+		}
+	}
+	virtual void SetBit(int N) {
+		output.xmm[0].f[N] = 1.0f;
+	}
+	virtual void UnsetBit(int N) {
+		output.xmm[0].f[N] = 0.0f;
+	}
+	virtual void SetFloat(int N,float val) {
+		output.xmm[0].f[N] = val;
+	}
+	virtual void UnsetFloat(int N) {
+		output.xmm[0].f[N] = 0.0f;
+	}
 };
 
 class Dense : public WeightBiasLayer {
 public:
-	Tensor kernelMatrix;
 	Dense(std::string name, int num_of_outputs, Activators activator)
-		: WeightBiasLayer(name, activator, num_of_outputs) {};
+		: WeightBiasLayer(name, activator, num_of_outputs) {	};
 	Dense(int num_of_outputs, Activators activator = NONE)
-		: WeightBiasLayer("Dense", activator, num_of_outputs) {};
+		: WeightBiasLayer("Dense", activator, num_of_outputs) {	};
 
 	~Dense() {};
 
 	void calculateOutput(Tensor &input_mat) override {
-		//right now it couldn't be parallelized, 
-		__m256* w = &kernelMatrix.xmm[0].v;
-		for (size_t n = 0; n < output.xmm_size; ++n) {
-			float* initData = &input_mat.xmm[0].f[0];
-			__m256 accum = _mm256_setzero_ps();
-			for (size_t i = 0; i < input_mat.size; i++) {
-				accum = _mm256_fmadd_ps(*w++, _mm256_set1_ps(*initData++), accum);
-			}
-			output.xmm[n].v = accum;
+		for (int i = 0; i < output.xmm_size; ++i) {
+			output.xmm[i].v = bias.xmm[i].v;
 		}
-		output.add(bias, output);
+		for (size_t N = 0; N < input_mat.size; N++) {
+			float val = input_mat.xmm[0].f[N];
+			if (val == 0.0f)
+				continue;
+			else if (val == 1.0f) {
+				for (int i = 0; i < output.xmm_size; ++i) {
+					output.xmm[i].v = _mm256_add_ps(weights[N].xmm[i].v, output.xmm[i].v);
+				}
+			}
+			else {
+				auto fm = _mm256_set1_ps(val);
+				for (int i = 0; i < output.xmm_size; ++i) {
+					output.xmm[i].v = _mm256_fmadd_ps(fm, weights[N].xmm[i].v, output.xmm[i].v);
+				}
+			}
+		}
 		activator(output, output);
-
 	};
 
 	// Sets up the Dense layer, it takes the shape of the matrix before it to compute its own matrices.
@@ -704,7 +685,8 @@ public:
 		for (int& n : Dim)
 			totalSize *= n;
 		output = Tensor(vector<int>{num_of_outputs});
-		weights = Tensor(vector<int>{totalSize, num_of_outputs});
+		for (int i = 0; i < totalSize; ++i)
+			weights.emplace_back(Tensor(vector<int>{num_of_outputs}));
 		bias = Tensor(vector<int>{num_of_outputs});
 #ifdef DEBUG_MODE
 		cerr << "***** LAYER " << name << "******" << endl;
@@ -714,167 +696,11 @@ public:
 #endif
 	}
 
-	void precompute() override {
-		kernelMatrix = Tensor(vector<int>{ (int)(weights.shape[0] * output.xmm_size * 8)});
-		int CountT = 0;
-		for (size_t n = 0; n < num_of_outputs; n += 8) {
-			for (size_t i = 0; i < inputLayer->output.size; i++) {
-				auto Tf = i * num_of_outputs + n;
-				kernelMatrix.xmm[CountT++].v = _mm256_loadu_ps(&weights.xmm[Tf >> 3].f[Tf & 7]);
-			}
-		}
-	}
+	void precompute() override {	}
 
 	string getType() override { return "Dense"; };
 };
 
-
-//#TODO
-class Conv : public WeightBiasLayer {
-
-private:
-	int kernel_size;
-	int stride;
-	int padding;
-
-public:
-	Tensor biasMat;
-	//Tensor smaller_mat;
-	uint32_t chunk_range;
-	uint32_t big_reserve_size;
-	uint32_t small_reserve_size;
-	Tensor s, b;
-	std::vector<float> big_matrix_vec;
-	int kept_dim;
-	std::vector<float> biases;
-	std::vector<int> X_col_shape;
-	std::vector<int> W_row_shape;
-	Tensor kernelMatrix;
-	Conv(std::string name, int num_of_outputs,
-		int kernel_size, int stride, int padding, Activators activator = NONE) : WeightBiasLayer(name, activator, num_of_outputs),
-		kernel_size(kernel_size), stride(stride),
-		padding(padding) {};
-	Conv(int num_of_outputs,
-		int kernel_size, int stride, int padding, Activators activator = NONE) : WeightBiasLayer("Conv", activator, num_of_outputs),
-		kernel_size(kernel_size), stride(stride),
-		padding(padding) {};
-
-	~Conv() {};
-	// Calculates the output of the convolution layer.
-	void calculateOutput(Tensor &input_mat) override {
-		im2col(input_mat, weights.shape, kernelMatrix, stride, padding);
-		std::vector<int> oldShape = weights.shape;
-		weights.reshape({ W_row_shape[1], W_row_shape[0] });
-		kernelMatrix.dot_product(kept_dim, big_matrix_vec, big_reserve_size, s, chunk_range, output);
-		output.add(biasMat, output);
-		activator(output, output);
-		weights.reshape(oldShape);
-	};
-
-	void initialize(vector<int>& inDim) override {
-
-		vector<int> outDim;
-		outDim.resize(3);
-		outDim[0] = (uint32_t)std::floor(((float)inDim[0] + padding * 2 - kernel_size) / stride + 1);
-		outDim[1] = (uint32_t)std::floor(((float)inDim[1] + padding * 2 - kernel_size) / stride + 1);
-		outDim[2] = num_of_outputs;
-		output = Tensor(outDim);
-		vector<int> wDim = { kernel_size ,kernel_size  ,inDim[2],outDim[2] };
-		weights = Tensor(wDim);
-		vector<int> bDim = { num_of_outputs };
-		bias = Tensor(bDim);
-#ifdef DEBUG_MODE
-		cerr << "***** LAYER " << name << "******" << endl;
-		//cerr << "Output " << ":" << output.shape_str()<<endl;
-		cerr << "Weights " << ":" << weights.shape_str() << endl;
-		cerr << "Bias " << ":" << bias.shape_str() << endl;
-#endif
-	}
-	// Sets up the convolution layer, it takes the shape of the matrix before it to compute its own matrices.
-	void precompute() override {
-		auto& in_mat = inputLayer->output.shape;
-		//vector<int> in_mat = { 28,28,1 };
-		//Setting the padding.
-		int pad = padding;
-
-		// Compute the size output of the im2col function, the X col, and W row matrices.
-		std::vector<int> filter_shape = this->weights.shape;
-		/*		int x = in_mat[0];
-				x = x - filter_shape[0] + 2 * pad;
-				x = (int)floor(float(x) / float(stride));
-				x = x + 1;*/
-		int x = output.shape[0];
-		// Computes the output size of the matrix of the dot product function and of the add bias.
-		/*std::vector<int> out_shape = {x, x, this->weights.shape[3]};
-		Tensor out(out_shape);
-		output = out;*/
-		//int x = output.shape[0];
-		int x_row = x * x;
-		int x_col = 1;
-
-		for (int i = 0; i < filter_shape.size() - 1; i++) {
-			x_col *= filter_shape[i];
-		}
-		X_col_shape.push_back(x_col);
-		X_col_shape.push_back(x_row);
-		int xx = filter_shape.at(filter_shape.size() - 1);
-		W_row_shape.push_back(xx);
-		W_row_shape.push_back(x_col);
-
-		std::vector<int> im_shape = { X_col_shape.at(0), X_col_shape.at(1) };
-		Tensor im(im_shape);
-		kernelMatrix = im;
-
-		// Set up the bias matrix so that its ready to be added to the output after the dot product.
-		for (int j = 0; j < output.shape.at(2); ++j) {
-			for (int i = 0; i < output.shape.at(0) * output.shape.at(1); ++i) {
-				biases.push_back(bias.getElement(j));
-			}
-		}
-		biasMat = Tensor(biases, output.shape);
-
-		// Setting up the weights matrix and reshaping it to the desired shape for the dot product.
-		std::vector<int> oldShape = weights.shape;
-		weights.reshape({ W_row_shape[1], W_row_shape[0] });
-
-		kept_dim = weights.shape[0];
-		auto other_dim = weights.shape[1];
-		auto repeated_dim = kernelMatrix.shape[1];
-		const auto& smaller_mat = weights;
-
-		chunk_range = (uint32_t)std::ceil(kept_dim / 8.0);
-		big_reserve_size = chunk_range * 8 * repeated_dim;
-		small_reserve_size = chunk_range * 8 * other_dim;
-
-		auto small_matrix_vec = std::vector<float>(small_reserve_size, 0.0f);
-		big_matrix_vec = std::vector<float>(big_reserve_size, 0.0f);
-
-		uint32_t i = 0;
-		uint32_t vec_index = 0;
-
-		while (i < smaller_mat.size) {
-			for (int j = 0; j < kept_dim; j++) {
-				small_matrix_vec[vec_index + j] = smaller_mat.getElement(i + j);
-			}
-			vec_index += kept_dim;
-			i += kept_dim;
-
-			while (vec_index % 8 != 0)
-				++vec_index;
-		}
-
-		Tensor small(small_matrix_vec, { (int)small_reserve_size, 1 });
-
-		s = small;
-		weights.reshape(oldShape);
-
-		// Reshaping the im2col to be padded same as the weights matrix.
-		Tensor mat(big_matrix_vec, { (int)big_reserve_size, 1 });
-		kernelMatrix = mat;
-
-	}
-	string getType() override { return "Conv2D"; };
-};
 
 class Model {
 public:
