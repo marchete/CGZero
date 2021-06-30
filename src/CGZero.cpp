@@ -2661,11 +2661,13 @@ int codingame(int argc, char* argv[]) {
 #pragma warning( push )
 #pragma warning( disable : 4556 )
 void file32to16(string f32, string f16) {
-	ifstream I(f32, ios::binary);
-	ofstream O(f16, ios::binary);
+	ifstream I(f32, ifstream::in | ios::binary);
+	ofstream O(f16, ifstream::out | ios::binary);
 	if (I.good() && O.good()) {
 		ALIGN __m128i H;
-		int S = (int)I.tellg();
+		auto init = I.tellg();
+		I.seekg(0, ios::end);
+		int S = (int)(I.tellg() - init);
 		I.seekg(0);
 		union {
 			char B[32];
@@ -2696,7 +2698,9 @@ void file16to32(string f16, string f32) {
 	ofstream O(f32, ios::binary);
 	if (I.good() && O.good()) {
 		ALIGN __m256 f;
-		int S = (int)I.tellg();
+		auto init = I.tellg();
+		I.seekg(0, ios::end);
+		int S = (int)(I.tellg()-init);
 		I.seekg(0);
 		union { char B[16]; __m128i H; };
 		int e8 = S / 16;
