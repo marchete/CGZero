@@ -10,5 +10,5 @@ plan:
     statement: markdowns/differences.md
   - title: "Environment Preparation"
     statement: markdowns/environment.md
-  - title: "Work in progress"
-    statement: markdowns/wip.md
+  - title: "Final words"
+    statement: markdowns/final.md
