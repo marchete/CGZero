@@ -38,5 +38,4 @@ My premises while creating the bot was:
 I'd like to thank CG people on chat (Jacek, Robostac, Wontonimo and others) for helping me with general NN knowledge.
 
 ## Disclaimer
-The bot is able to learn how to play correctly in about 10 generations (around 4 hrs in a Core-i7 without GPU training), but it doesn't have a chance against other NN bots. I've restarted the training two times (with different parameters) and it was able to beat bots in 7th-12th ranking in `gen0011`. But it never beats "proper" NN bots (top 4), it has a near 0% winrate. I don't know what's missing, but it's really far from other NN bots, it's ranked between the best heuristic bots and other NN bots. I've tried different approaches (more diversity to initial turns, different hyperparameters), but I can't make it any better (following the pure self-learning premises, there is no CGBenchmark or anything).
-If anyone can improve it I'd like to know how to do it.
+The bot is able to learn how to play correctly in about 10 generations (around 4 hrs in a Core-i7 without GPU training). Improved versions of this code was able to reach 5th place with 1hr of training.
