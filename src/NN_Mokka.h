@@ -272,7 +272,7 @@ public:
 		return xmm[index].v;
 	}
 	// Adds two matrices together, mainly for the bias.
-	void add(Tensor bias, Tensor &out) {
+	void add(Tensor &bias, Tensor &out) {
 
 		ASSERT(((int)size) != ((int)bias.size));
 		for (int i = 0; i < bias.xmm_size; ++i) {
